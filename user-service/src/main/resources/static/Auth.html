@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login & Signup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #f0f2f5;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      color: #666;
+      transition: all 0.3s ease;
+    }
+
+    .tab.active {
+      color: #1a73e8;
+      border-bottom: 2px solid #1a73e8;
+      margin-bottom: -2px;
+    }
+
+    .form-container {
+      display: none;
+    }
+
+    .form-container.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #444;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: border-color 0.3s ease;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #1a73e8;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #1557b0;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      position: relative;
+      color: transparent;
+    }
+
+    .loading::after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: 50%;
+      left: 50%;
+      margin: -10px 0 0 -10px;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .error-message {
+      display: none;
+      color: #d32f2f;
+      background: #fde7e7;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    .error-message.active {
+      display: block;
+    }
+
+    .success-message {
+      display: none;
+      color: #2e7d32;
+      background: #edf7ed;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    .success-message.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="tabs">
+    <div class="tab active" data-tab="login">Login</div>
+    <div class="tab" data-tab="signup">Sign Up</div>
+  </div>
+
+  <div id="error-message" class="error-message"></div>
+  <div id="success-message" class="success-message"></div>
+
+  <div id="login-form" class="form-container active">
+    <form onsubmit="return handleLogin(event)">
+      <div class="form-group">
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" required>
+      </div>
+      <div class="form-group">
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" required>
+      </div>
+      <button type="submit" id="login-button">Login</button>
+    </form>
+  </div>
+
+  <div id="signup-form" class="form-container">
+    <form onsubmit="return handleSignup(event)">
+      <div class="form-group">
+        <label for="signup-username">Username</label>
+        <input type="text" id="signup-username" required>
+      </div>
+      <div class="form-group">
+        <label for="signup-email">Email</label>
+        <input type="email" id="signup-email" required>
+      </div>
+      <div class="form-group">
+        <label for="signup-password">Password</label>
+        <input type="password" id="signup-password" required>
+      </div>
+      <div class="form-group">
+        <label for="signup-confirm-password">Confirm Password</label>
+        <input type="password" id="signup-confirm-password" required>
+      </div>
+      <button type="submit" id="signup-button">Sign Up</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Tab switching logic
+  const tabs = document.querySelectorAll('.tab');
+  const forms = document.querySelectorAll('.form-container');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-tab');
+
+      // Update active tab
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      // Show corresponding form
+      forms.forEach(form => {
+        form.classList.remove('active');
+        if (form.id === `${target}-form`) {
+          form.classList.add('active');
+        }
+      });
+
+      // Clear messages
+      clearMessages();
+    });
+  });
+
+  // Helper functions
+  function showError(message) {
+    const errorElement = document.getElementById('error-message');
+    errorElement.textContent = message;
+    errorElement.classList.add('active');
+  }
+
+  function showSuccess(message) {
+    const successElement = document.getElementById('success-message');
+    successElement.textContent = message;
+    successElement.classList.add('active');
+  }
+
+  function clearMessages() {
+    document.getElementById('error-message').classList.remove('active');
+    document.getElementById('success-message').classList.remove('active');
+  }
+
+  function setLoading(buttonId, isLoading) {
+    const button = document.getElementById(buttonId);
+    button.disabled = isLoading;
+    if (isLoading) {
+      button.classList.add('loading');
+    } else {
+      button.classList.remove('loading');
+    }
+  }
+
+  // Handle login
+  async function handleLogin(event) {
+    event.preventDefault();
+    clearMessages();
+
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    setLoading('login-button', true);
+
+    try {
+      let response = await fetch('http://localhost:8080/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username,
+          password: password
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid username or password');
+        }
+        throw new Error('Login failed. Please try again.');
+      }
+
+      let res;
+      try {
+        res = await response.json();
+      } catch (e) {
+        throw new Error('Invalid server response');
+      }
+
+      if (!res || !res.token) {
+        throw new Error('Invalid response from server');
+      }
+
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('username', username);
+      showSuccess('Login successful!');
+      window.location.href = `dashboard.html`;
+    } catch (error) {
+      showError(error.message || 'An error occurred');
+    } finally {
+      setLoading('login-button', false);
+    }
+
+    return false;
+  }
+
+  // Handle signup
+  async function handleSignup(event) {
+    event.preventDefault();
+    clearMessages();
+
+    const username = document.getElementById('signup-username').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+    if (password !== confirmPassword) {
+      showError('Passwords do not match');
+      return false;
+    }
+
+    setLoading('signup-button', true);
+
+    try {
+      const response = await fetch('http://localhost:8080/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          username: username,
+          password: password,
+          email: email
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Signup failed. Please try again.');
+      }
+
+      event.target.reset();
+      // Switch to login tab
+      document.querySelector('[data-tab="login"]').click();
+      showSuccess('Signup successful! Please login.');
+
+    } catch (error) {
+      showError(error.message);
+    } finally {
+      setLoading('signup-button', false);
+    }
+
+    return false;
+  }
+</script>
+</body>
+</html>

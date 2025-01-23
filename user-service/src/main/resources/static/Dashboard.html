@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    .navbar {
+      background: white;
+      padding: 1rem 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .welcome-text {
+      font-size: 1.2rem;
+      color: #333;
+    }
+
+    .logout-btn {
+      padding: 0.5rem 1rem;
+      background: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .logout-btn:hover {
+      background: #6c1c24;
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .container {
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .columns {
+      display: flex;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .column {
+      flex: 1;
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .column h2 {
+      color: #333;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    .list-item {
+      padding: 1rem;
+      border: 1px solid #e1e4e8;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.3s;
+    }
+
+    .list-item:hover {
+      background: #f8f9fa;
+    }
+
+    .list-item .status {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+    }
+
+    .status.online {
+      background: #28a745;
+    }
+
+    .status.offline {
+      background: #dc3545;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+    }
+
+    .room-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
+
+    .room-participants {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .join-btn {
+      padding: 0.3rem 0.8rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .join-btn:hover {
+      background: #0056b3;
+    }
+
+    .search-box {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      width: 100%;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 1rem;
+      color: #666;
+    }
+
+    @media (max-width: 768px) {
+      .columns {
+        flex-direction: column;
+      }
+    }
+
+    .dashboard-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .protected-content {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #e9ecef;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+<nav class="navbar">
+  <span class="welcome-text">Welcome, <span id="username">User</span>!</span>
+  <button class="logout-btn" onclick="handleLogout()">Logout</button>
+</nav>
+
+<div class="container">
+  <div class="dashboard-content">
+    <h1>Dashboard</h1>
+    <div class="protected-content">
+      <h2>Protected Content</h2>
+      <div id="user-data">
+        <!-- Protected data will be loaded here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="columns">
+    <!-- Users Column -->
+    <div class="column">
+      <h2>Available Users</h2>
+      <label>
+        <input type="text" class="search-box" placeholder="Search users..." onkeyup="searchUsers(this.value)">
+      </label>
+      <div id="users-list">
+        <!-- Users will be loaded here -->
+        <div class="loading">Loading users...</div>
+      </div>
+    </div>
+
+    <!-- Rooms Column -->
+    <div class="column">
+      <h2>Available Rooms
+        <button class="logout-btn" onclick="window.location.href='NewRoom.html'">Add NewRoom</button>
+      </h2>
+      <label>
+        <input type="text" class="search-box" placeholder="Search rooms..." onkeyup="searchRooms(this.value)">
+      </label>
+      <div id="rooms-list">
+        <!-- Rooms will be loaded here -->
+        <div class="loading">Loading rooms...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let users = [];
+  let rooms = [];
+
+  // Check for token on page load
+  document.addEventListener('DOMContentLoaded', async () => {
+    let token = localStorage.getItem('token');
+    if (!token) {
+      // Redirect to login if no token
+      window.location.href = 'Auth.html';
+      return;
+    }
+    // Fetch user data
+    try {
+      let url = 'http://localhost:8080/user/find/' + localStorage.getItem('username');
+      const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch user data');
+      const userData = await response.json();
+      document.getElementById('username').textContent = userData.username;
+      localStorage.setItem('id', userData.id);
+
+      // Display other user data
+      document.getElementById('user-data').innerHTML = `
+                    <p>UserId :${userData.id}</p>
+                    <p>Email: ${userData.email}</p>
+                    <p>Status: ${userData.online ? 'Online' : 'Offline'}</p>
+                    <p>Last Login: ${new Date().toLocaleString()}</p>
+                `;
+
+
+      // Load users and rooms
+      await loadUsers();
+      await loadRooms();
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  });
+
+
+  // Logout handler
+  async function handleLogout() {
+    try {
+      let url = 'http://localhost:8080/auth/logout/' + localStorage.getItem('username');
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok){
+        throw new Error('Failed to logout try again');
+      }else{
+        // Clear token
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('id');
+
+        // Redirect to login
+        window.location.href = 'Auth.html';
+      }
+    }catch (e){
+      console.error(e);
+    }
+  }
+
+
+  async function loadUsers() {
+    try {
+      const response = await fetch('http://localhost:8080/user/getAll', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch users');
+      users = await response.json();
+      renderUsers();
+    } catch (error) {
+      console.error('Error loading users:', error);
+      document.getElementById('users-list').innerHTML = 'Failed to load users';
+    }
+  }
+
+
+  function renderUsers(searchTerm = '', skipUsername = localStorage.getItem('username')) {
+    const filteredUsers = users
+            .filter(user =>
+                    (user.username !== skipUsername) && // Skip the user with the specified username
+                    (searchTerm ? user.username.toLowerCase().includes(searchTerm.toLowerCase()) : true) // Match search term
+            );
+
+
+    const usersHtml = filteredUsers.map(user => `
+                <div class="list-item">
+                    <div class="user-info">
+                    <div class="status ${user.online ? 'online' : 'offline'}"></div>
+                        ${user.username}
+                    </div>
+                    <button class="join-btn" onclick="startChat('${skipUsername}${user.username}')">Chat</button>
+                </div>
+            `).join('');
+
+    document.getElementById('users-list').innerHTML = usersHtml || 'No users found';
+  }
+
+  function searchUsers(term) {
+    renderUsers(term);
+  }
+
+  async function loadRooms() {
+    try {
+      const response = await fetch('http://localhost:8090/chatroom/get', {
+        method : 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch rooms');
+      rooms = await response.json();
+      renderRooms();
+    } catch (error) {
+      console.error('Error loading rooms:', error);
+      document.getElementById('rooms-list').innerHTML = 'Failed to load rooms';
+    }
+  }
+
+  function renderRooms(searchTerm = '') {
+    const filteredRooms = searchTerm
+            ? rooms.filter(room => room.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            : rooms;
+
+    const roomsHtml = filteredRooms.map(room => `
+                <div class="list-item">
+                    <div class="room-info">
+                        <span>${room.groupName}</span>
+                        <button class="join-btn" onclick="joinRoom('${room.groupName}')">Join</button>
+                    </div>
+                </div>
+            `).join('');
+
+    document.getElementById('rooms-list').innerHTML = roomsHtml || 'No rooms found';
+  }
+
+  function searchRooms(term) {
+    renderRooms(term);
+  }
+
+  async function startChat(roomName) {
+    window.location.href = `inbox.html?roomName=${roomName}`;
+  }
+
+  async function joinRoom(roomName) {
+    window.location.href = `inbox.html?roomName=${roomName}`;
+  }
+
+</script>
+</body>
+</html>
+
+
